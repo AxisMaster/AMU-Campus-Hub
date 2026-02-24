@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --color-amu-green: #00A651;
+  --color-amu-dark: #121212;
+  --color-amu-card: #1E1E1E;
+  --color-amu-text: #E0E0E0;
+  --color-amu-text-muted: #A0A0A0;
+}
+
+:root {
+  --background: #F5F5F0;
+  --foreground: #121212;
+  --card: #FFFFFF;
+  --card-foreground: #121212;
+  --border: rgba(0, 0, 0, 0.05);
+}
+
+.dark {
+  --background: #121212;
+  --foreground: #E0E0E0;
+  --card: #1E1E1E;
+  --card-foreground: #E0E0E0;
+  --border: rgba(255, 255, 255, 0.05);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.bg-amu-card {
+  background-color: var(--card);
+}
+
+.border-amu {
+  border-color: var(--border);
+}
+
+/* Hide scrollbar for horizontal scrolling areas */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
