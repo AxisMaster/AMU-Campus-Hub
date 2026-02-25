@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import UserAvatar from '@/components/UserAvatar';
 
 interface EventCardProps {
   event: Event;
@@ -72,12 +73,10 @@ export default function EventCard({ event, onApprove, onReject }: EventCardProps
 
         <div className="flex items-center justify-between">
           <div className="flex -space-x-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="w-8 h-8 rounded-full border-2 border-var(--card) bg-gray-700 overflow-hidden relative">
-                <Image src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`} fill alt="User" />
-              </div>
+            {['Alex', 'Sam', 'Jordan'].map((name) => (
+              <UserAvatar key={name} name={name} className="w-8 h-8 border-2 border-var(--card) text-[10px]" />
             ))}
-            <div className="w-8 h-8 rounded-full border-2 border-var(--card) bg-gray-800 flex items-center justify-center text-[10px] text-white font-medium">
+            <div className="w-8 h-8 rounded-full border-2 border-var(--card) bg-gray-800 flex items-center justify-center text-[10px] text-white font-medium z-10">
               +120
             </div>
           </div>

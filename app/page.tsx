@@ -10,6 +10,7 @@ import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import EventCard from '@/components/EventCard';
 import SkeletonEventCard from '@/components/SkeletonEventCard';
+import UserAvatar from '@/components/UserAvatar';
 
 export default function Home() {
   const { user } = useAuth();
@@ -88,13 +89,7 @@ export default function Home() {
             <Bell size={20} className="text-gray-400" />
           </div>
           <Link href="/you">
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#00A651] relative shadow-lg">
-              <Image
-                src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'Guest'}`}
-                fill
-                alt="Profile"
-              />
-            </div>
+            <UserAvatar name={user?.name || 'Guest'} className="w-10 h-10 border-2 border-[#00A651]" />
           </Link>
         </div>
       </header>

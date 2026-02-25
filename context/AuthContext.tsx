@@ -98,8 +98,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Get initial session
+    // Get initial session with a safety timeout
+    const sessionTimeout = setTimeout(() => {
+      console.warn('Auth session check timed out, proceeding with loading=false');
+      setLoading(false);
+    }, 5000); // 5 seconds safety timeout
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(sessionTimeout);
       if (session?.user) {
         fetchUserProfile(
           session.user.id,
@@ -108,6 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         fetchSavedEvents(session.user.id, session.user.email || '');
       }
+      setLoading(false);
+    }).catch(err => {
+      clearTimeout(sessionTimeout);
+      console.error('Session retrieval error:', err);
       setLoading(false);
     });
 
@@ -167,20 +177,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Supabase is not configured. Please set up your environment variables.' };
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      // Add a 15-second timeout to the sign-in request
+      const signInPromise = supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      return { error: error.message };
+      const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+        setTimeout(() => reject(new Error('Sign-in timed out. Please check your internet connection.')), 15000)
+      );
+
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as any;
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      if (data.user) {
+        await fetchUserProfile(data.user.id, data.user.email || '');
+      }
+
+      return {};
+    } catch (err: any) {
+      console.error('Sign-in error:', err);
+      return { error: err.message || 'Network error or timeout occurred.' };
     }
-
-    if (data.user) {
-      await fetchUserProfile(data.user.id, data.user.email || '');
-    }
-
-    return {};
   };
 
   const signOut = async () => {

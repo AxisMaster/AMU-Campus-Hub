@@ -8,21 +8,11 @@ import { Moon, Sun, Shield, Bookmark, Home, Building, Camera, Check, LogOut, Set
 import BottomNav from '@/components/BottomNav';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
+import UserAvatar from '@/components/UserAvatar';
 
 const DEPARTMENTS = ['ZHCET (Engineering)', 'Science', 'Arts', 'Commerce', 'Medicine', 'Law', 'Social Science', 'Other'];
 const HALLS = ['Sulaiman Hall', 'Sir Syed Hall', 'Ross Masood Hall', 'Hadi Hasan Hall', 'Mohammad Habib Hall', 'Nadeem Tarin Hall', 'Other'];
 const CLUBS = ['CEC (Cultural Education Centre)', 'Drama Club', 'Science Club', 'Photography Club', 'Robotics Club', 'Other'];
-
-const DEFAULT_AVATARS = [
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Jasper',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Milo',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Luna',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Willow',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo',
-];
 
 export default function YouPage() {
     const { user, theme, toggleTheme, signOut, updateProfile, savedEventIds } = useAuth();
@@ -37,7 +27,6 @@ export default function YouPage() {
         department: user?.department || '',
         hall: user?.hall || '',
         club: user?.club || '',
-        avatar: user?.avatar || '',
     });
 
     const [otherFields, setOtherFields] = useState({
@@ -61,7 +50,6 @@ export default function YouPage() {
             department: formData.department === 'Other' ? otherFields.department : formData.department,
             hall: formData.hall === 'Other' ? otherFields.hall : formData.hall,
             club: formData.club === 'Other' ? otherFields.club : formData.club,
-            avatar: formData.avatar,
         };
         updateProfile(finalData);
         setActiveTab('profile'); // Switch back to profile view after saving
@@ -131,12 +119,7 @@ export default function YouPage() {
                             {/* Profile Card */}
                             <div className="bg-amu-card rounded-3xl p-6 flex flex-col items-center text-center gap-4 border border-amu relative overflow-hidden shadow-lg">
                                 <div className="relative w-32 h-32 rounded-full border-4 border-var(--background) shadow-2xl">
-                                    <Image
-                                        src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
-                                        fill
-                                        alt="Profile"
-                                        className="rounded-full bg-[#FFE4B5] object-cover"
-                                    />
+                                    <UserAvatar name={user.name} className="w-full h-full text-5xl" />
                                     {user.role === 'admin' && (
                                         <div className="absolute bottom-1 right-1 bg-[#00A651] p-2 rounded-full border-4 border-var(--background) shadow-md">
                                             <Shield size={14} className="text-white" />
@@ -219,46 +202,7 @@ export default function YouPage() {
                             className="space-y-8 mt-4"
                         >
                             <form onSubmit={handleSaveSettings} className="space-y-8">
-                                {/* Profile Picture Section */}
-                                <div className="bg-amu-card p-6 rounded-3xl border border-amu shadow-sm">
-                                    <h2 className="text-sm font-black tracking-widest text-gray-500 uppercase flex items-center gap-2 mb-6">
-                                        <Camera size={16} className="text-[#00A651]" />
-                                        Profile Picture
-                                    </h2>
-                                    <div className="flex flex-col items-center gap-6">
-                                        <div className="relative w-28 h-28 rounded-full border-4 border-var(--background) overflow-hidden shadow-lg">
-                                            <Image
-                                                src={formData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
-                                                fill
-                                                alt="Profile"
-                                                className="object-cover"
-                                            />
-                                        </div>
-                                        <div className="w-full">
-                                            <p className="text-xs text-gray-400 mb-4 text-center font-medium">Choose a default avatar</p>
-                                            <div className="grid grid-cols-4 gap-3">
-                                                {DEFAULT_AVATARS.map((avatar) => (
-                                                    <button
-                                                        type="button"
-                                                        key={avatar}
-                                                        onClick={() => setFormData({ ...formData, avatar })}
-                                                        className={`relative aspect-square rounded-2xl overflow-hidden border-2 transition-all ${formData.avatar === avatar ? 'border-[#00A651] scale-105 shadow-md' : 'border-amu hover:border-gray-500'
-                                                            }`}
-                                                    >
-                                                        <Image src={avatar} fill alt="Avatar Option" className="object-cover" />
-                                                        {formData.avatar === avatar && (
-                                                            <div className="absolute inset-0 bg-[#00A651]/20 flex items-center justify-center">
-                                                                <div className="bg-[#00A651] rounded-full p-1 shadow-sm">
-                                                                    <Check size={14} className="text-white" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+
 
                                 {/* Personal Details */}
                                 <div className="bg-amu-card p-6 rounded-3xl border border-amu shadow-sm space-y-6">
