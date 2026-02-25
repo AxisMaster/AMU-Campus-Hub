@@ -23,6 +23,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   toggleTheme: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  savedEventIds: string[];
+  toggleSavedEvent: (eventId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +33,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [savedEventIds, setSavedEventIds] = useState<string[]>([]);
+
+  const fetchSavedEvents = async (userId: string, email: string) => {
+    if (isSupabaseConfigured && userId !== 'demo-id') {
+      try {
+        const { data, error } = await supabase
+          .from('saved_events')
+          .select('event_id')
+          .eq('user_id', userId);
+
+        if (!error && data) {
+          setSavedEventIds(data.map((d: any) => d.event_id));
+        }
+      } catch (err) {
+        console.error('Error fetching saved events:', err);
+      }
+    } else {
+      const savedIds = JSON.parse(localStorage.getItem(`saved_events_${email}`) || '[]');
+      setSavedEventIds(savedIds);
+    }
+  };
 
   const fetchUserProfile = async (userId: string, email: string, fallbackName?: string) => {
     try {
@@ -83,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           session.user.email || '',
           session.user.user_metadata?.name
         );
+        fetchSavedEvents(session.user.id, session.user.email || '');
       }
       setLoading(false);
     });
@@ -95,8 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           session.user.email || '',
           session.user.user_metadata?.name
         );
+        fetchSavedEvents(session.user.id, session.user.email || '');
       } else {
         setUser(null);
+        setSavedEventIds([]);
       }
     });
 
@@ -162,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
     }
     setUser(null);
+    setSavedEventIds([]);
   };
 
   const toggleTheme = () => {
@@ -190,8 +217,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const toggleSavedEvent = async (eventId: string) => {
+    if (!user) return;
+
+    const isSaved = savedEventIds.includes(eventId);
+    const previousSavedEventIds = [...savedEventIds];
+
+    // Optimistic UI update
+    if (isSaved) {
+      setSavedEventIds((prev) => prev.filter((id) => id !== eventId));
+    } else {
+      setSavedEventIds((prev) => [...prev, eventId]);
+    }
+
+    try {
+      if (isSupabaseConfigured && user.id !== 'demo-id') {
+        if (isSaved) {
+          const { error } = await supabase
+            .from('saved_events')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('event_id', eventId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('saved_events')
+            .insert({ user_id: user.id, event_id: eventId });
+
+          if (error) {
+            // Check for unique constraint violation (code 23505 in Postgres)
+            if (error.code === '23505') {
+              console.warn('Event already saved in database, syncing state quietly.');
+              // It's actually a success state (it's already saved)
+              return;
+            }
+            throw error;
+          }
+        }
+      } else {
+        // Local storage fallback for demo
+        const savedIds = JSON.parse(localStorage.getItem(`saved_events_${user.email}`) || '[]');
+        if (isSaved) {
+          const newIds = savedIds.filter((id: string) => id !== eventId);
+          localStorage.setItem(`saved_events_${user.email}`, JSON.stringify(newIds));
+        } else {
+          if (!savedIds.includes(eventId)) {
+            savedIds.push(eventId);
+            localStorage.setItem(`saved_events_${user.email}`, JSON.stringify(savedIds));
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error('Error toggling save:', error);
+      // Rollback optimistic update
+      setSavedEventIds(previousSavedEventIds);
+      alert('Failed to update saved status. Please try again.');
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, theme, signUp, signIn, signOut, toggleTheme, updateProfile }}>
+    <AuthContext.Provider value={{
+      user, loading, theme, signUp, signIn, signOut, toggleTheme, updateProfile,
+      savedEventIds, toggleSavedEvent
+    }}>
       {children}
     </AuthContext.Provider>
   );
