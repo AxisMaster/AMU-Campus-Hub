@@ -1,5 +1,5 @@
 <div align="center">
-  <img width="1200" height="475" alt="AMU Campus Hub Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img width="1200" alt="AMU Campus Hub Banner" src="./public/github-banner.png" />
   
   # 🎓 AMU Campus Hub
   **The ultimate student-led companion for Aligarh Muslim University.**
@@ -58,9 +58,9 @@
    ```
 
 3. **Set up Environment Variables:**
-   Copy the example file and fill in your Supabase credentials:
+   Create a `.env.local` file in the root directory and add your Supabase credentials securely:
    ```bash
-   cp .env.example .env.local
+   touch .env.local
    ```
    *Note: Ensure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are correctly set.*
 
