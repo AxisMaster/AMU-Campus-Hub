@@ -17,6 +17,7 @@ export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('All');
+  const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past'>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchEvents = () => {
@@ -62,11 +63,32 @@ export default function Home() {
     }
   };
 
+  const handleManualDelete = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!confirm('Are you sure you want to PERMANENTLY delete this event? This will also remove it from everyone\'s saved list.')) return;
+    try {
+      const res = await fetch(`/api/events/${id}/delete`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
+      fetchEvents();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete event.');
+    }
+  };
+
   const filteredEvents = events.filter((event) => {
     // Filter by approval status: only admins see unapproved events
     if (!user?.role || user.role !== 'admin') {
       if (!event.isApproved) return false;
     }
+
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const isPast = eventDate < today;
+    if (timeFilter === 'upcoming' && isPast) return false;
+    if (timeFilter === 'past' && !isPast) return false;
 
     const matchesFilter = filter === 'All' || event.category === filter;
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -108,6 +130,26 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Mode Toggle: Upcoming vs Past */}
+      <div className="px-6 mb-6">
+        <div className="flex p-1.5 bg-amu-card rounded-2xl border border-amu items-center shadow-inner">
+          <button
+            onClick={() => setTimeFilter('upcoming')}
+            className={`flex-1 py-3 rounded-[18px] text-sm font-black transition-all duration-300 ${timeFilter === 'upcoming' ? 'bg-[#00A651] text-white shadow-lg' : 'text-gray-500 hover:text-white'
+              }`}
+          >
+            UPCOMING
+          </button>
+          <button
+            onClick={() => setTimeFilter('past')}
+            className={`flex-1 py-3 rounded-[18px] text-sm font-black transition-all duration-300 ${timeFilter === 'past' ? 'bg-[#00A651] text-white shadow-lg' : 'text-gray-500 hover:text-white'
+              }`}
+          >
+            PAST
+          </button>
+        </div>
+      </div>
+
       {/* Filters */}
       <section className="px-6 mb-8">
         <div className="flex gap-3 overflow-x-auto no-scrollbar scroll-smooth snap-x">
@@ -128,7 +170,16 @@ export default function Home() {
 
       {/* Events Feed */}
       <section className="px-6 relative min-h-[400px]">
-        <h2 className="text-lg font-bold mb-4 tracking-tight">Recommended for You</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold tracking-tight">
+            {timeFilter === 'upcoming' ? 'Recommended for You' : 'Past Events Archive'}
+          </h2>
+          {timeFilter === 'past' && (
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-gray-800/30 px-2 py-1 rounded-md">
+              Cleared after 7 days
+            </span>
+          )}
+        </div>
 
         <div className="space-y-6">
           <AnimatePresence mode="popLayout">
@@ -159,8 +210,10 @@ export default function Home() {
                   <Link href={`/events/${event.id}`}>
                     <EventCard
                       event={event}
+                      isPast={timeFilter === 'past'}
                       onApprove={(e) => handleApprove(event.id, e)}
                       onReject={(e) => handleReject(event.id, e)}
+                      onDelete={(e) => handleManualDelete(event.id, e)}
                     />
                   </Link>
                 </motion.div>

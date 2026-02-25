@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, MapPin, Calendar, Clock, User, Share2, Bookmark, ExternalLink, Users, Banknote } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, User, Share2, Bookmark, ExternalLink, Users, Banknote, Trash2 } from 'lucide-react';
 import { Event } from '@/types';
 import { format } from 'date-fns';
 import BottomNav from '@/components/BottomNav';
@@ -35,6 +35,22 @@ export default function EventDetails() {
     await toggleSavedEvent(event.id);
   };
 
+  const handleDelete = async () => {
+    if (!event) return;
+    if (!confirm('Are you sure you want to PERMANENTLY delete this event? This will also remove it from everyone\'s saved list.')) return;
+
+    try {
+      const res = await fetch(`/api/events/${event.id}/delete`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
+      router.push('/');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete event.');
+    }
+  };
+
+  const isPast = event ? new Date(event.date) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
+
   if (!event) return <div className="min-h-screen bg-var(--background) text-var(--foreground) flex items-center justify-center">Loading...</div>;
 
   return (
@@ -59,6 +75,14 @@ export default function EventDetails() {
             <button className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/10">
               <Share2 size={20} />
             </button>
+            {user?.role === 'admin' && (
+              <button
+                onClick={handleDelete}
+                className="w-10 h-10 rounded-full bg-red-500/80 backdrop-blur-md flex items-center justify-center border border-white/10 text-white transition-colors hover:bg-red-500"
+              >
+                <Trash2 size={20} />
+              </button>
+            )}
             {user && (
               <button
                 onClick={handleToggleSave}
@@ -75,9 +99,15 @@ export default function EventDetails() {
       <div className="px-6 -mt-10 relative z-10">
         <div className="flex justify-between items-end mb-6">
           <h1 className="text-3xl font-bold leading-tight max-w-[80%]">{event.title}</h1>
-          <div className="bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-lg w-16 h-16 text-black">
-            <span className="text-xs font-bold uppercase tracking-wider opacity-60">{format(new Date(event.date), 'MMM')}</span>
-            <span className="text-2xl font-black leading-none">{format(new Date(event.date), 'dd')}</span>
+          <div className={`rounded-2xl p-3 flex flex-col items-center justify-center shadow-lg w-16 h-16 transition-colors ${isPast ? 'bg-gray-800 text-gray-500 border border-gray-700' : 'bg-white text-black'}`}>
+            {isPast ? (
+              <span className="text-[10px] font-black uppercase tracking-tighter">ENDED</span>
+            ) : (
+              <>
+                <span className="text-xs font-bold uppercase tracking-wider opacity-60">{format(new Date(event.date), 'MMM')}</span>
+                <span className="text-2xl font-black leading-none">{format(new Date(event.date), 'dd')}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -160,22 +190,24 @@ export default function EventDetails() {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-var(--background) via-var(--background) to-transparent z-20">
         {event.registrationLink ? (
           <a
-            href={event.registrationLink}
+            href={isPast ? undefined : event.registrationLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full bg-[#00A651] hover:bg-[#008f45] text-white font-bold py-4 rounded-2xl shadow-lg shadow-green-900/20 transition-all flex items-center justify-center gap-2"
+            className={`w-full font-bold py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 ${isPast ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' : 'bg-[#00A651] hover:bg-[#008f45] text-white shadow-green-900/20'}`}
           >
-            Register Now <ExternalLink size={18} />
+            {isPast ? 'Event Ended' : 'Register Now'} {!isPast && <ExternalLink size={18} />}
           </a>
         ) : (
           <button
-            onClick={handleToggleSave}
-            className={`w-full font-bold py-4 rounded-2xl shadow-lg transition-all ${isSaved
-              ? 'bg-amu-card text-[#00A651] border-2 border-[#00A651]'
-              : 'bg-[#00A651] hover:bg-[#008f45] text-white shadow-green-900/20'
+            onClick={isPast ? undefined : handleToggleSave}
+            className={`w-full font-bold py-4 rounded-2xl shadow-lg transition-all ${isPast
+              ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+              : isSaved
+                ? 'bg-amu-card text-[#00A651] border-2 border-[#00A651]'
+                : 'bg-[#00A651] hover:bg-[#008f45] text-white shadow-green-900/20'
               }`}
           >
-            {isSaved ? '✓ Saved' : user ? 'Save Event' : 'Sign In to Save'}
+            {isPast ? 'Event Ended' : isSaved ? '✓ Saved' : user ? 'Save Event' : 'Sign In to Save'}
           </button>
         )}
       </div>

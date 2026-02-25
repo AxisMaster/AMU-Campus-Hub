@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getEvents, addEvent } from '@/lib/data';
+import { getEvents, addEvent, cleanupExpiredEvents } from '@/lib/data';
 import { Event } from '@/types';
 
 export async function GET() {
+  await cleanupExpiredEvents();
   const events = await getEvents();
   return NextResponse.json(events);
 }
@@ -10,7 +11,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
+
     const newEvent: Event = {
       ...body,
       id: crypto.randomUUID(),

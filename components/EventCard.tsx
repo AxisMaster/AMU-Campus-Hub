@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { MapPin, CheckCircle, Clock } from 'lucide-react';
+import { MapPin, CheckCircle, Clock, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -10,12 +10,13 @@ import UserAvatar from '@/components/UserAvatar';
 
 interface EventCardProps {
   event: Event;
-  // Optional admin actions to override default save button behavior
+  isPast?: boolean;
   onApprove?: (e: React.MouseEvent) => void;
   onReject?: (e: React.MouseEvent) => void;
+  onDelete?: (e: React.MouseEvent) => void;
 }
 
-export default function EventCard({ event, onApprove, onReject }: EventCardProps) {
+export default function EventCard({ event, isPast, onApprove, onReject, onDelete }: EventCardProps) {
   const { user, savedEventIds, toggleSavedEvent } = useAuth();
   const router = useRouter();
 
@@ -38,10 +39,21 @@ export default function EventCard({ event, onApprove, onReject }: EventCardProps
   const showAdminActions = isAdmin && !event.isApproved && onApprove && onReject;
 
   return (
-    <div className={`bg-amu-card rounded-3xl overflow-hidden mb-6 shadow-lg border relative group ${!event.isApproved ? 'border-yellow-500/50' : 'border-amu'}`}>
+    <div className={`bg-amu-card rounded-3xl overflow-hidden mb-6 shadow-lg border relative group transition-all duration-300 ${isPast ? 'opacity-60 grayscale-[0.3]' : ''} ${!event.isApproved ? 'border-yellow-500/50' : 'border-amu'}`}>
+      {/* Admin Deletet Button (Top Right) */}
+      {isAdmin && onDelete && (
+        <button
+          onClick={onDelete}
+          className="absolute top-4 right-4 z-30 w-10 h-10 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center backdrop-blur-sm border border-white/10 shadow-lg transition-transform hover:scale-110"
+          title="Delete Event"
+        >
+          <Trash2 size={18} />
+        </button>
+      )}
+
       {/* Admin Approval Badge */}
       {!event.isApproved && isAdmin && (
-        <div className="absolute top-4 right-4 z-20 bg-yellow-500/90 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+        <div className="absolute top-4 right-16 z-20 bg-yellow-500/90 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
           <Clock size={12} /> Pending Approval
         </div>
       )}
@@ -56,9 +68,15 @@ export default function EventCard({ event, onApprove, onReject }: EventCardProps
         <div className="absolute inset-0 bg-gradient-to-t from-var(--card) via-transparent to-transparent opacity-90" />
 
         {/* Date Badge */}
-        <div className="absolute top-4 left-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2 w-14 h-14 flex flex-col items-center justify-center shadow-lg text-white">
-          <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{month}</span>
-          <span className="text-xl font-black leading-none">{day}</span>
+        <div className={`absolute top-4 left-4 rounded-2xl p-2 w-14 h-14 flex flex-col items-center justify-center shadow-lg transition-colors ${isPast ? 'bg-gray-800/80 text-gray-400 border border-gray-700' : 'bg-white/10 backdrop-blur-md border border-white/20 text-white'}`}>
+          {isPast ? (
+            <span className="text-[10px] font-black uppercase tracking-tighter">ENDED</span>
+          ) : (
+            <>
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{month}</span>
+              <span className="text-xl font-black leading-none">{day}</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -95,6 +113,10 @@ export default function EventCard({ event, onApprove, onReject }: EventCardProps
               >
                 <CheckCircle size={16} /> Approve
               </button>
+            </div>
+          ) : isPast ? (
+            <div className="text-gray-500 text-xs font-bold uppercase tracking-widest px-4 py-2 bg-gray-800/30 rounded-full border border-gray-800/50">
+              Event Passed
             </div>
           ) : (
             <button

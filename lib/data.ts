@@ -116,6 +116,11 @@ export const approveEvent = async (id: string): Promise<void> => {
 export const deleteEvent = async (id: string): Promise<void> => {
   if (isSupabaseConfigured) {
     const adminClient = createAdminClient();
+
+    // Manually delete from saved_events first since there is no foreign key constraint with cascade
+    await adminClient.from('saved_events').delete().eq('event_id', id);
+
+    // Then delete the event itself
     const { error } = await adminClient.from('events').delete().eq('id', id);
     if (error) {
       console.error('Error deleting event in Supabase:', error);
@@ -123,6 +128,41 @@ export const deleteEvent = async (id: string): Promise<void> => {
     }
   } else {
     fallbackEvents = fallbackEvents.filter((e) => e.id !== id);
+  }
+};
+
+/**
+ * Automatically delete events that are older than 7 days.
+ */
+export const cleanupExpiredEvents = async (): Promise<void> => {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const dateString = sevenDaysAgo.toISOString().split('T')[0];
+
+  if (isSupabaseConfigured) {
+    const adminClient = createAdminClient();
+
+    // Get IDs of events to be deleted to manually clean up saved_events
+    const { data: expiredEvents } = await adminClient
+      .from('events')
+      .select('id')
+      .lt('date', dateString);
+
+    if (expiredEvents && expiredEvents.length > 0) {
+      const ids = expiredEvents.map(e => e.id);
+
+      // Clean up saved_events
+      await adminClient.from('saved_events').delete().in('event_id', ids);
+
+      // Delete events
+      const { error } = await adminClient.from('events').delete().in('id', ids);
+      if (error) console.error('Error during auto-cleanup:', error);
+    }
+  } else {
+    fallbackEvents = fallbackEvents.filter(e => {
+      const eventDate = new Date(e.date);
+      return eventDate >= sevenDaysAgo;
+    });
   }
 };
 
