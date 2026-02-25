@@ -84,7 +84,7 @@ export default function BottomNav() {
           <span className="text-[10px] font-medium">Alerts</span>
         </Link>
 
-        <Link href="/profile" className={`flex flex-col items-center gap-1 ${isActive('/profile') ? 'text-[#00A651]' : 'text-gray-400'}`}>
+        <Link href="/you" className={`flex flex-col items-center gap-1 ${isActive('/you') ? 'text-[#00A651]' : 'text-gray-400'}`}>
           <User size={24} />
           <span className="text-[10px] font-medium">You</span>
         </Link>

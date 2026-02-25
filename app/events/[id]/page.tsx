@@ -13,9 +13,8 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 export default function EventDetails() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, savedEventIds, toggleSavedEvent } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
-  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     fetch('/api/events')
@@ -26,47 +25,14 @@ export default function EventDetails() {
       });
   }, [params.id]);
 
-  // Check if event is saved
-  useEffect(() => {
-    if (!user || !event) return;
+  const isSaved = event ? savedEventIds.includes(event.id) : false;
 
-    const checkSavedStatus = async () => {
-      if (isSupabaseConfigured && user.id) {
-        const { data } = await supabase
-          .from('saved_events')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('event_id', event.id)
-          .maybeSingle();
-
-        if (data) setIsSaved(true);
-      }
-    };
-
-    checkSavedStatus();
-  }, [user, event]);
-
-  const toggleSave = async () => {
+  const handleToggleSave = async () => {
     if (!user || !event) {
       router.push('/login');
       return;
     }
-
-    if (isSupabaseConfigured && user.id) {
-      if (isSaved) {
-        await supabase
-          .from('saved_events')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('event_id', event.id);
-        setIsSaved(false);
-      } else {
-        await supabase
-          .from('saved_events')
-          .insert({ user_id: user.id, event_id: event.id });
-        setIsSaved(true);
-      }
-    }
+    await toggleSavedEvent(event.id);
   };
 
   if (!event) return <div className="min-h-screen bg-var(--background) text-var(--foreground) flex items-center justify-center">Loading...</div>;
@@ -95,7 +61,7 @@ export default function EventDetails() {
             </button>
             {user && (
               <button
-                onClick={toggleSave}
+                onClick={handleToggleSave}
                 className={`w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/10 transition-colors ${isSaved ? 'text-[#00A651] bg-[#00A651]/20 border-[#00A651]' : ''
                   }`}
               >
@@ -203,10 +169,10 @@ export default function EventDetails() {
           </a>
         ) : (
           <button
-            onClick={toggleSave}
+            onClick={handleToggleSave}
             className={`w-full font-bold py-4 rounded-2xl shadow-lg transition-all ${isSaved
-                ? 'bg-amu-card text-[#00A651] border-2 border-[#00A651]'
-                : 'bg-[#00A651] hover:bg-[#008f45] text-white shadow-green-900/20'
+              ? 'bg-amu-card text-[#00A651] border-2 border-[#00A651]'
+              : 'bg-[#00A651] hover:bg-[#008f45] text-white shadow-green-900/20'
               }`}
           >
             {isSaved ? '✓ Saved' : user ? 'Save Event' : 'Sign In to Save'}
