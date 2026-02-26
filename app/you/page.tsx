@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Moon, Sun, Shield, Bookmark, Home, Building, Camera, Check, LogOut, Settings as SettingsIcon, User as UserIcon } from 'lucide-react';
+import { Moon, Sun, Shield, Bookmark, Home, Building, Camera, Check, LogOut, Settings as SettingsIcon, User as UserIcon, Trash2, RefreshCw } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import UserAvatar from '@/components/UserAvatar';
+import { useToast } from '@/components/Toast';
 
 const DEPARTMENTS = ['ZHCET (Engineering)', 'Science', 'Arts', 'Commerce', 'Medicine', 'Law', 'Social Science', 'Other'];
 const HALLS = ['Sulaiman Hall', 'Sir Syed Hall', 'Ross Masood Hall', 'Hadi Hasan Hall', 'Mohammad Habib Hall', 'Nadeem Tarin Hall', 'Other'];
@@ -20,6 +22,8 @@ export default function YouPage() {
 
     const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
     const [adminMode, setAdminMode] = useState(false);
+    const [isCleaning, setIsCleaning] = useState(false);
+    const { showToast } = useToast();
 
     // Settings State
     const [formData, setFormData] = useState({
@@ -58,6 +62,33 @@ export default function YouPage() {
     const handleLogout = () => {
         signOut();
         router.push('/login');
+    };
+
+    const handleStorageCleanup = async () => {
+        if (!confirm('This will permanently delete all files in storage NOT linked to any active event. Proceed?')) return;
+
+        setIsCleaning(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/storage-cleanup', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token}`
+                }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(`Cleanup successful! Deleted ${data.deleted} orphaned files.`, 'success');
+            } else {
+                showToast(data.error || 'Cleanup failed', 'error');
+            }
+        } catch (error) {
+            console.error('Cleanup error:', error);
+            showToast('Network error during cleanup', 'error');
+        } finally {
+            setIsCleaning(false);
+        }
     };
 
     return (
@@ -166,29 +197,53 @@ export default function YouPage() {
                                 </Link>
                             </div>
 
-                            {/* Admin Mode Toggle */}
+                            {/* Admin Actions */}
                             {user.role === 'admin' && (
-                                <div className="bg-amu-card rounded-3xl p-5 flex items-center justify-between border border-[#FFA500]/30 shadow-lg relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFA500]/5 rounded-full blur-2xl pointer-events-none" />
-                                    <div className="flex items-center gap-4 relative z-10">
-                                        <div className="w-12 h-12 rounded-full bg-[#3A2814] flex items-center justify-center text-[#FFA500] shadow-inner">
-                                            <Shield size={24} />
+                                <div className="space-y-4">
+                                    <div className="bg-amu-card rounded-3xl p-5 flex items-center justify-between border border-[#FFA500]/30 shadow-lg relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFA500]/5 rounded-full blur-2xl pointer-events-none" />
+                                        <div className="flex items-center gap-4 relative z-10">
+                                            <div className="w-12 h-12 rounded-full bg-[#3A2814] flex items-center justify-center text-[#FFA500] shadow-inner">
+                                                <Shield size={24} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-lg">Admin Mode</h3>
+                                                <p className="text-sm text-gray-400">Post and manage official notices</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-lg">Admin Mode</h3>
-                                            <p className="text-sm text-gray-400">Post and manage official notices</p>
+                                        <div
+                                            className={`relative w-14 h-8 rounded-full p-1 transition-colors cursor-pointer z-10 ${adminMode ? 'bg-[#FFA500]' : 'bg-gray-700'}`}
+                                            onClick={() => setAdminMode(!adminMode)}
+                                        >
+                                            <motion.div
+                                                className="w-6 h-6 bg-white rounded-full shadow-md"
+                                                animate={{ x: adminMode ? 24 : 0 }}
+                                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                            />
                                         </div>
                                     </div>
-                                    <div
-                                        className={`relative w-14 h-8 rounded-full p-1 transition-colors cursor-pointer z-10 ${adminMode ? 'bg-[#FFA500]' : 'bg-gray-700'}`}
-                                        onClick={() => setAdminMode(!adminMode)}
+
+                                    {/* Storage Cleanup Utility */}
+                                    <button
+                                        onClick={handleStorageCleanup}
+                                        disabled={isCleaning}
+                                        className="w-full bg-amu-card p-5 rounded-3xl border border-amu hover:bg-amu-card/80 transition-all cursor-pointer group flex items-center justify-between shadow-sm disabled:opacity-50"
                                     >
-                                        <motion.div
-                                            className="w-6 h-6 bg-white rounded-full shadow-md"
-                                            animate={{ x: adminMode ? 24 : 0 }}
-                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                        />
-                                    </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-[#1A1A1A] flex items-center justify-center text-gray-400 group-hover:text-red-500 transition-colors shadow-inner">
+                                                {isCleaning ? <RefreshCw size={24} className="animate-spin text-[#00A651]" /> : <Trash2 size={24} />}
+                                            </div>
+                                            <div className="text-left">
+                                                <h4 className="font-bold text-lg">System Cleanup</h4>
+                                                <p className="text-sm text-gray-400">
+                                                    {isCleaning ? 'Cleaning up storage...' : 'Remove orphaned event files'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className={`font-bold text-sm ${isCleaning ? 'text-gray-500' : 'text-[#00A651]'}`}>
+                                            {isCleaning ? '...' : 'RUN'}
+                                        </div>
+                                    </button>
                                 </div>
                             )}
                         </motion.div>

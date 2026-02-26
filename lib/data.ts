@@ -111,16 +111,63 @@ export const approveEvent = async (id: string): Promise<void> => {
 };
 
 /**
+ * Helper to extract the storage path (filename) from a Supabase public URL.
+ * Example: https://.../storage/v1/object/public/event-images/random-name.png -> random-name.png
+ */
+function extractStoragePath(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parts = url.split('/');
+    return parts[parts.length - 1]; // Return the last segment which is the filename
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * Delete/reject an event. Admin-only operation.
+ * Also cleans up associated images/documents from Supabase Storage.
  */
 export const deleteEvent = async (id: string): Promise<void> => {
   if (isSupabaseConfigured) {
     const adminClient = createAdminClient();
 
-    // Manually delete from saved_events first since there is no foreign key constraint with cascade
+    // 1. Fetch URLs first to know what to delete from storage
+    const { data: eventData } = await adminClient
+      .from('events')
+      .select('image_url, document_url')
+      .eq('id', id)
+      .single();
+
+    if (eventData) {
+      const pathsToDelete: string[] = [];
+      const imagePath = extractStoragePath(eventData.image_url);
+      const docPath = extractStoragePath(eventData.document_url);
+
+      if (imagePath && !eventData.image_url?.includes('picsum.photos')) {
+        pathsToDelete.push(imagePath);
+      }
+      if (docPath) {
+        pathsToDelete.push(docPath);
+      }
+
+      if (pathsToDelete.length > 0) {
+        try {
+          await adminClient.storage.from('event-images').remove(pathsToDelete);
+        } catch (storageError) {
+          console.error('Failed to cleanup storage for event:', id, storageError);
+          // Don't throw, proceed with DB deletion anyway
+        }
+      }
+    }
+
+    // 2. Manually delete from saved_events first
     await adminClient.from('saved_events').delete().eq('event_id', id);
 
-    // Then delete the event itself
+    // 3. Delete from notifications if any
+    await adminClient.from('notifications').delete().eq('event_id', id);
+
+    // 4. Finally delete the event itself
     const { error } = await adminClient.from('events').delete().eq('id', id);
     if (error) {
       console.error('Error deleting event in Supabase:', error);
@@ -133,6 +180,7 @@ export const deleteEvent = async (id: string): Promise<void> => {
 
 /**
  * Automatically delete events that are older than 7 days.
+ * Also cleans up associated storage assets.
  */
 export const cleanupExpiredEvents = async (): Promise<void> => {
   const sevenDaysAgo = new Date();
@@ -142,21 +190,43 @@ export const cleanupExpiredEvents = async (): Promise<void> => {
   if (isSupabaseConfigured) {
     const adminClient = createAdminClient();
 
-    // Get IDs of events to be deleted to manually clean up saved_events
+    // 1. Get IDs and URLs of events to be deleted
     const { data: expiredEvents } = await adminClient
       .from('events')
-      .select('id')
+      .select('id, image_url, document_url')
       .lt('date', dateString);
 
     if (expiredEvents && expiredEvents.length > 0) {
       const ids = expiredEvents.map(e => e.id);
 
-      // Clean up saved_events
-      await adminClient.from('saved_events').delete().in('event_id', ids);
+      // 2. Extract and delete storage paths
+      const pathsToDelete: string[] = [];
+      expiredEvents.forEach(e => {
+        const imagePath = extractStoragePath(e.image_url);
+        const docPath = extractStoragePath(e.document_url);
 
-      // Delete events
+        if (imagePath && !e.image_url?.includes('picsum.photos')) {
+          pathsToDelete.push(imagePath);
+        }
+        if (docPath) {
+          pathsToDelete.push(docPath);
+        }
+      });
+
+      if (pathsToDelete.length > 0) {
+        try {
+          await adminClient.storage.from('event-images').remove(pathsToDelete);
+        } catch (storageError) {
+          console.error('Error during storage auto-cleanup:', storageError);
+        }
+      }
+
+      // 3. Clean up database records
+      await adminClient.from('saved_events').delete().in('event_id', ids);
+      await adminClient.from('notifications').delete().in('event_id', ids);
+
       const { error } = await adminClient.from('events').delete().in('id', ids);
-      if (error) console.error('Error during auto-cleanup:', error);
+      if (error) console.error('Error during DB auto-cleanup:', error);
     }
   } else {
     fallbackEvents = fallbackEvents.filter(e => {
@@ -185,6 +255,7 @@ function mapSupabaseEventToLocal(dbEvent: any): Event {
     socialLink: dbEvent.social_link,
     entryFee: dbEvent.entry_fee,
     expectedAudience: dbEvent.expected_audience,
+    documentUrl: dbEvent.document_url,
   };
 }
 
@@ -207,5 +278,82 @@ function mapLocalEventToSupabase(event: Event): any {
     social_link: event.socialLink,
     entry_fee: event.entryFee,
     expected_audience: event.expectedAudience,
+    document_url: event.documentUrl || null,
   };
 }
+
+/**
+ * Cross-references all files in the 'event-images' storage bucket with the URLs in the 'events' table.
+ * Deletes any files in storage that aren't referenced by any event.
+ */
+export const deepStorageCleanup = async (): Promise<{ deleted: number; total: number; errors: number }> => {
+  if (!isSupabaseConfigured) return { deleted: 0, total: 0, errors: 0 };
+
+  const adminClient = createAdminClient();
+  let deletedCount = 0;
+  let errorCount = 0;
+
+  try {
+    // 1. Fetch all active image and document URLs
+    const { data: events, error: dbError } = await adminClient
+      .from('events')
+      .select('image_url, document_url');
+
+    if (dbError) throw dbError;
+
+    // 2. Extract and store filenames in a Set
+    const activeFiles = new Set<string>();
+    events?.forEach(e => {
+      const imgPath = extractStoragePath(e.image_url);
+      const docPath = extractStoragePath(e.document_url);
+      if (imgPath) activeFiles.add(imgPath);
+      if (docPath) activeFiles.add(docPath);
+    });
+
+    // 3. List all files in the bucket
+    const { data: storageFiles, error: storageError } = await adminClient
+      .storage
+      .from('event-images')
+      .list();
+
+    if (storageError) throw storageError;
+
+    if (!storageFiles) return { deleted: 0, total: 0, errors: 0 };
+
+    // 4. Identify orphans
+    const orphanedPaths = storageFiles
+      .filter(file => !activeFiles.has(file.name))
+      .map(file => file.name);
+
+    if (orphanedPaths.length === 0) {
+      return { deleted: 0, total: storageFiles.length, errors: 0 };
+    }
+
+    // 5. Delete in batches
+    const batchSize = 100;
+    for (let i = 0; i < orphanedPaths.length; i += batchSize) {
+      const batch = orphanedPaths.slice(i, i + batchSize);
+      const { error: deleteError } = await adminClient
+        .storage
+        .from('event-images')
+        .remove(batch);
+
+      if (deleteError) {
+        console.error('Batch storage deletion error:', deleteError);
+        errorCount += batch.length;
+      } else {
+        deletedCount += batch.length;
+      }
+    }
+
+    return {
+      deleted: deletedCount,
+      total: storageFiles.length,
+      errors: errorCount
+    };
+
+  } catch (error) {
+    console.error('Deep Storage Cleanup failed:', error);
+    throw error;
+  }
+};

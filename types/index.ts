@@ -11,6 +11,7 @@ export interface Event {
   venue: string;
   category: Category;
   imageUrl?: string;
+  documentUrl?: string;
   organizer: string;
   isApproved: boolean;
   createdBy: string; // User email

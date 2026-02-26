@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { ArrowLeft, Upload, Calendar, MapPin, Tag, X, CheckCircle } from 'lucide-react';
+import { useToast } from '@/components/Toast';
+import { ArrowLeft, Upload, Calendar, MapPin, Tag, X, CheckCircle, User, FileText, Paperclip } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/BottomNav';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
@@ -12,18 +13,15 @@ import { motion } from 'motion/react';
 
 export default function UploadEvent() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [docFile, setDocFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -39,6 +37,12 @@ export default function UploadEvent() {
     expectedAudience: 'All Students',
   });
 
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
+
   if (!user) {
     return null;
   }
@@ -51,6 +55,21 @@ export default function UploadEvent() {
     }
   };
 
+  const handleDocChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type !== 'application/pdf') {
+        showToast('Please upload a PDF file', 'error');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        showToast('PDF size should be less than 10MB', 'error');
+        return;
+      }
+      setDocFile(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -59,49 +78,52 @@ export default function UploadEvent() {
       let imageUrl = '';
 
       if (isSupabaseConfigured && imageFile) {
+        // ... existing image upload logic ...
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${fileName}`;
-
-        const formData = new FormData();
-        formData.append('file', imageFile);
-        formData.append('fileName', filePath);
+        const uploadData = new FormData();
+        uploadData.append('file', imageFile);
+        uploadData.append('fileName', filePath);
 
         try {
           const uploadRes = await fetch('/api/upload', {
             method: 'POST',
-            body: formData,
+            body: uploadData,
           });
-
-          const contentType = uploadRes.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            if (!uploadRes.ok) {
-              const errorData = await uploadRes.json();
-              console.error('Error uploading image via API:', errorData);
-              throw new Error(errorData.error || 'Upload failed');
-            } else {
-              const { url } = await uploadRes.json();
-              imageUrl = url;
-            }
-          } else {
-            const textResponse = await uploadRes.text();
-            console.error('Non-JSON response from upload API:', textResponse);
-            throw new Error('Server returned an invalid response');
+          if (uploadRes.ok) {
+            const { url } = await uploadRes.json();
+            imageUrl = url;
           }
         } catch (err) {
-          console.error('Upload API request failed:', err);
-          // Fallback to direct upload attempt (might fail due to RLS)
-          const { error: uploadError } = await supabase.storage
-            .from('event-images')
-            .upload(filePath, imageFile);
+          console.error('Image upload failed', err);
+        }
+      }
 
-          if (uploadError) {
-            console.error('Direct upload also failed:', uploadError);
-            alert('Failed to upload image. Please check your Supabase Storage policies.');
-          } else {
-            const { data } = supabase.storage.from('event-images').getPublicUrl(filePath);
-            imageUrl = data.publicUrl;
+      let documentUrl = '';
+      if (isSupabaseConfigured && docFile) {
+        const fileExt = docFile.name.split('.').pop();
+        const fileName = `doc_${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const docFormData = new FormData();
+        docFormData.append('file', docFile);
+        docFormData.append('fileName', filePath);
+        // We can use the same bucket but a different folder or just the bucket
+        docFormData.append('bucket', 'event-images');
+
+        try {
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            body: docFormData,
+          });
+
+          if (uploadRes.ok) {
+            const { url } = await uploadRes.json();
+            documentUrl = url;
           }
+        } catch (err) {
+          console.error('Error uploading document:', err);
         }
       }
 
@@ -111,6 +133,7 @@ export default function UploadEvent() {
         body: JSON.stringify({
           ...formData,
           imageUrl: imageUrl || 'https://picsum.photos/800/600', // Fallback
+          documentUrl: documentUrl || null,
           createdBy: user.email,
           userId: user.id,
           organizer: formData.organizer || user.name,
@@ -128,7 +151,7 @@ export default function UploadEvent() {
       }
     } catch (error: any) {
       console.error(error);
-      alert(error.message || 'An error occurred while creating the event.');
+      showToast(error.message || 'Failed to create event.', 'error');
     } finally {
       setLoading(false);
     }
@@ -200,6 +223,49 @@ export default function UploadEvent() {
           />
         </div>
 
+        {/* PDF Upload Section */}
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-gray-500">Attachments (Optional)</label>
+          <div
+            onClick={() => docInputRef.current?.click()}
+            className="w-full bg-amu-card border border-amu border-dashed rounded-2xl p-4 flex items-center gap-4 hover:border-[#00A651] transition-colors cursor-pointer group"
+          >
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${docFile ? 'bg-[#00A651]/20 text-[#00A651]' : 'bg-var(--background) text-gray-500 group-hover:bg-[#00A651]/10'}`}>
+              <FileText size={24} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate">
+                {docFile ? docFile.name : 'Add PDF Circular or Brochure'}
+              </p>
+              <p className="text-xs text-gray-500">
+                {docFile ? `${(docFile.size / (1024 * 1024)).toFixed(2)} MB` : 'PDF format, max 10MB'}
+              </p>
+            </div>
+            {docFile ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDocFile(null);
+                  if (docInputRef.current) docInputRef.current.value = '';
+                }}
+                className="p-2 hover:bg-white/10 rounded-full text-gray-400"
+              >
+                <X size={18} />
+              </button>
+            ) : (
+              <Paperclip size={18} className="text-gray-500" />
+            )}
+          </div>
+          <input
+            type="file"
+            ref={docInputRef}
+            onChange={handleDocChange}
+            accept="application/pdf"
+            className="hidden"
+          />
+        </div>
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-2">Event Title *</label>
@@ -250,6 +316,21 @@ export default function UploadEvent() {
                 placeholder="e.g. Kennedy Hall"
                 value={formData.venue}
                 onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-2">Host / Organizer *</label>
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+              <input
+                type="text"
+                required
+                className="w-full bg-amu-card border border-amu rounded-xl pl-10 pr-4 py-3 text-var(--foreground) focus:outline-none focus:border-[#00A651]"
+                placeholder="e.g. Kennedy Hall or The Journal Club"
+                value={formData.organizer}
+                onChange={(e) => setFormData({ ...formData, organizer: e.target.value })}
               />
             </div>
           </div>

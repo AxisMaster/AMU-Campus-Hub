@@ -6,6 +6,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const fileName = formData.get('fileName') as string;
+    const bucket = (formData.get('bucket') as string) || 'event-images';
 
     if (!file || !fileName) {
       return NextResponse.json({ error: 'File and fileName are required' }, { status: 400 });
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     const supabaseAdmin = createAdminClient();
 
     const { data, error } = await supabaseAdmin.storage
-      .from('event-images')
+      .from(bucket)
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false,
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     }
 
     const { data: publicUrlData } = supabaseAdmin.storage
-      .from('event-images')
+      .from(bucket)
       .getPublicUrl(fileName);
 
     return NextResponse.json({ url: publicUrlData.publicUrl }, { status: 200 });

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, MapPin, Calendar, Clock, User, Share2, Bookmark, ExternalLink, Users, Banknote, Trash2, Tag } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, User, Share2, Bookmark, ExternalLink, Users, Banknote, Trash2, Tag, FileText, Download } from 'lucide-react';
 import { Event } from '@/types';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
@@ -268,6 +268,32 @@ export default function EventDetails() {
                 <ExternalLink size={16} />
                 Visit Event Page / Social Media
               </a>
+            )}
+
+            {event.documentUrl && (
+              <div className="mt-8 pt-8 border-t border-amu/50">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                  <FileText className="text-[#00A651]" size={20} />
+                  Event Resources
+                </h3>
+                <a
+                  href={event.documentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-4 bg-amu-card p-4 rounded-2xl border border-amu hover:border-[#00A651] transition-all"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-[#00A651]/10 flex items-center justify-center text-[#00A651] group-hover:bg-[#00A651] group-hover:text-white transition-colors">
+                    <FileText size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold truncate text-sm">Download Event Circular / Brochure</p>
+                    <p className="text-gray-500 text-xs">PDF Document</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 text-gray-400 group-hover:bg-[#00A651]/10 group-hover:text-[#00A651] transition-colors">
+                    <Download size={18} />
+                  </div>
+                </a>
+              </div>
             )}
           </div>
         </div>
