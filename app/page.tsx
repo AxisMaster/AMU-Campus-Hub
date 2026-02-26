@@ -171,7 +171,7 @@ export default function Home() {
               key={cat}
               onClick={() => setFilter(cat)}
               className={`snap-center px-6 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-300 ease-out ${filter === cat
-                ? 'bg-[#00A651] text-white shadow-lg shadow-green-900/30 ring-2 ring-[#00A651] ring-offset-2 ring-offset-var(--background)'
+                ? 'bg-[#00A651] text-white shadow-lg shadow-green-900/30 scale-105 border-transparent'
                 : 'bg-amu-card text-gray-400 border border-amu hover:text-white'
                 }`}
             >

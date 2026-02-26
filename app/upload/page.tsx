@@ -57,12 +57,12 @@ export default function UploadEvent() {
 
     try {
       let imageUrl = '';
-      
+
       if (isSupabaseConfigured && imageFile) {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${fileName}`;
-        
+
         const formData = new FormData();
         formData.append('file', imageFile);
         formData.append('fileName', filePath);
@@ -94,13 +94,13 @@ export default function UploadEvent() {
           const { error: uploadError } = await supabase.storage
             .from('event-images')
             .upload(filePath, imageFile);
-            
+
           if (uploadError) {
             console.error('Direct upload also failed:', uploadError);
             alert('Failed to upload image. Please check your Supabase Storage policies.');
           } else {
-             const { data } = supabase.storage.from('event-images').getPublicUrl(filePath);
-             imageUrl = data.publicUrl;
+            const { data } = supabase.storage.from('event-images').getPublicUrl(filePath);
+            imageUrl = data.publicUrl;
           }
         }
       }
@@ -145,7 +145,7 @@ export default function UploadEvent() {
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6 max-w-2xl mx-auto">
         {success && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-green-500/20 border border-green-500 text-green-500 p-4 rounded-xl flex items-center gap-3"
@@ -159,7 +159,7 @@ export default function UploadEvent() {
         )}
 
         {/* Image Upload Placeholder */}
-        <div 
+        <div
           className="w-full h-48 bg-amu-card border-2 border-dashed border-amu rounded-3xl flex flex-col items-center justify-center text-gray-400 hover:border-[#00A651] transition-colors cursor-pointer group relative overflow-hidden"
           onClick={() => fileInputRef.current?.click()}
         >
@@ -169,7 +169,7 @@ export default function UploadEvent() {
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="text-white font-bold">Change Image</span>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -191,12 +191,12 @@ export default function UploadEvent() {
               <span className="text-xs text-gray-600 mt-1">PNG, JPG up to 5MB</span>
             </>
           )}
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleImageChange} 
-            accept="image/*" 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            accept="image/*"
+            className="hidden"
           />
         </div>
 
@@ -285,7 +285,7 @@ export default function UploadEvent() {
 
           <div className="pt-4 border-t border-amu">
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Additional Info (Optional)</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-500 mb-2">Registration Form Link</label>

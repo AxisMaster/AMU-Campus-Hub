@@ -165,10 +165,10 @@ export default function EventDetails() {
         </div>
       </div>
 
-      <div className="px-6 -mt-10 relative z-10">
+      <div className="relative -mt-16 z-10 bg-[var(--background)] rounded-t-[40px] px-6 pt-10">
         {/* Category Tag */}
         <div className="mb-3">
-          <span className="inline-flex items-center gap-1.5 text-[#00A651] text-xs font-bold uppercase tracking-widest bg-[#00A651]/10 px-3 py-1.5 rounded-full border border-[#00A651]/20">
+          <span className="inline-flex items-center gap-1.5 text-white text-xs font-bold uppercase tracking-widest bg-[#00A651] px-3 py-1.5 rounded-full shadow-lg">
             <Tag size={12} />
             {event.category}
           </span>
