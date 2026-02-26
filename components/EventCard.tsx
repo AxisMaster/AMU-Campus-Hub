@@ -1,12 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import { MapPin, CheckCircle, Clock, Trash2 } from 'lucide-react';
+import { MapPin, CheckCircle, Clock, Trash2, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import UserAvatar from '@/components/UserAvatar';
 
 interface EventCardProps {
   event: Event;
@@ -27,7 +26,7 @@ export default function EventCard({ event, isPast, onApprove, onReject, onDelete
   const isSaved = savedEventIds.includes(event.id);
 
   const handleSave = async (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent navigating to the event details page
+    e.preventDefault();
     if (!user) {
       router.push('/login');
       return;
@@ -39,89 +38,100 @@ export default function EventCard({ event, isPast, onApprove, onReject, onDelete
   const showAdminActions = isAdmin && !event.isApproved && onApprove && onReject;
 
   return (
-    <div className={`bg-amu-card rounded-3xl overflow-hidden mb-6 shadow-lg border relative group transition-all duration-300 ${isPast ? 'opacity-60 grayscale-[0.3]' : ''} ${!event.isApproved ? 'border-yellow-500/50' : 'border-amu'}`}>
-      {/* Admin Deletet Button (Top Right) */}
-      {isAdmin && onDelete && (
-        <button
-          onClick={onDelete}
-          className="absolute top-4 right-4 z-30 w-10 h-10 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center backdrop-blur-sm border border-white/10 shadow-lg transition-transform hover:scale-110"
-          title="Delete Event"
-        >
-          <Trash2 size={18} />
-        </button>
-      )}
-
-      {/* Admin Approval Badge */}
-      {!event.isApproved && isAdmin && (
-        <div className="absolute top-4 right-16 z-20 bg-yellow-500/90 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-          <Clock size={12} /> Pending Approval
-        </div>
-      )}
-
-      <div className="relative h-64 w-full">
+    <div className={`bg-amu-card rounded-3xl overflow-hidden shadow-lg border relative group transition-all duration-300 ${isPast ? 'opacity-60 grayscale-[0.3]' : ''} ${!event.isApproved ? 'border-yellow-500/50' : 'border-amu'}`}>
+      {/* === IMAGE ZONE === */}
+      <div className="relative h-52 w-full overflow-hidden">
         <Image
           src={event.imageUrl || 'https://picsum.photos/800/600'}
           alt={event.title}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-var(--card) via-transparent to-transparent opacity-90" />
+
+        {/* Admin Delete Button */}
+        {isAdmin && onDelete && (
+          <button
+            onClick={onDelete}
+            className="absolute top-3 right-3 z-30 w-9 h-9 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center backdrop-blur-sm border border-white/10 shadow-lg transition-transform hover:scale-110"
+            title="Delete Event"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+
+        {/* Admin Approval Badge */}
+        {!event.isApproved && isAdmin && (
+          <div className={`absolute top-3 z-20 bg-yellow-500/90 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${isAdmin && onDelete ? 'right-14' : 'right-3'}`}>
+            <Clock size={12} /> Pending
+          </div>
+        )}
 
         {/* Date Badge */}
-        <div className={`absolute top-4 left-4 rounded-2xl p-2 w-14 h-14 flex flex-col items-center justify-center shadow-lg transition-colors ${isPast ? 'bg-gray-800/80 text-gray-400 border border-gray-700' : 'bg-white/10 backdrop-blur-md border border-white/20 text-white'}`}>
+        <div className={`absolute top-3 left-3 rounded-2xl p-2 w-13 h-13 flex flex-col items-center justify-center shadow-lg ${isPast ? 'bg-gray-800/90 text-gray-400 border border-gray-700' : 'bg-white/10 backdrop-blur-md border border-white/20 text-white'}`}>
           {isPast ? (
-            <span className="text-[10px] font-black uppercase tracking-tighter">ENDED</span>
+            <span className="text-[10px] font-black uppercase">ENDED</span>
           ) : (
             <>
               <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{month}</span>
-              <span className="text-xl font-black leading-none">{day}</span>
+              <span className="text-lg font-black leading-none">{day}</span>
             </>
           )}
         </div>
       </div>
 
-      <div className="p-5 absolute bottom-0 w-full">
-        <div className="flex items-center gap-2 text-gray-300 text-xs mb-2">
+      {/* === INFO ZONE (solid background, no overlay) === */}
+      <div className="p-5">
+        {/* Category & Venue */}
+        <div className="flex items-center gap-2 text-xs mb-2">
           <span className="text-[#00A651] font-bold uppercase tracking-wider">{event.category}</span>
-          <span className="w-1 h-1 rounded-full bg-gray-500" />
-          <span>{event.venue}</span>
+          <span className="w-1 h-1 rounded-full bg-gray-600" />
+          <span className="text-gray-400 flex items-center gap-1">
+            <MapPin size={12} />
+            {event.venue}
+          </span>
         </div>
 
-        <h3 className="text-2xl font-bold text-var(--foreground) mb-4 leading-tight">{event.title}</h3>
+        {/* Title */}
+        <h3 className="text-xl font-bold text-var(--foreground) leading-tight mb-3 line-clamp-2">{event.title}</h3>
 
+        {/* Date & Time Row + Actions */}
         <div className="flex items-center justify-between">
-          <div className="flex -space-x-2">
-            {['Alex', 'Sam', 'Jordan'].map((name) => (
-              <UserAvatar key={name} name={name} className="w-8 h-8 border-2 border-var(--card) text-[10px]" />
-            ))}
-            <div className="w-8 h-8 rounded-full border-2 border-var(--card) bg-gray-800 flex items-center justify-center text-[10px] text-white font-medium z-10">
-              +120
-            </div>
+          {/* Date + Time */}
+          <div className="flex items-center gap-2 text-gray-400 text-xs">
+            <Calendar size={14} className="text-gray-500" />
+            <span className="font-medium">{format(eventDate, 'EEE, d MMM')}</span>
+            {event.time && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-gray-600" />
+                <span className="font-medium">{event.time}</span>
+              </>
+            )}
           </div>
 
+          {/* Action Buttons */}
           {showAdminActions ? (
             <div className="flex gap-2">
               <button
                 onClick={onReject}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-bold transition-colors shadow-lg flex items-center gap-1"
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full text-xs font-bold transition-colors shadow-lg"
               >
                 Reject
               </button>
               <button
                 onClick={onApprove}
-                className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-full text-sm font-bold transition-colors shadow-lg flex items-center gap-1"
+                className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1.5 rounded-full text-xs font-bold transition-colors shadow-lg flex items-center gap-1"
               >
-                <CheckCircle size={16} /> Approve
+                <CheckCircle size={14} /> Approve
               </button>
             </div>
           ) : isPast ? (
-            <div className="text-gray-500 text-xs font-bold uppercase tracking-widest px-4 py-2 bg-gray-800/30 rounded-full border border-gray-800/50">
-              Event Passed
+            <div className="text-gray-500 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 bg-gray-800/30 rounded-full border border-gray-800/50">
+              Ended
             </div>
           ) : (
             <button
               onClick={handleSave}
-              className={`px-6 py-2 rounded-full text-sm font-semibold transition-colors shadow-lg ${isSaved
+              className={`px-5 py-1.5 rounded-full text-xs font-bold transition-colors shadow-lg ${isSaved
                 ? 'bg-amu-card text-[#00A651] border-2 border-[#00A651]'
                 : 'bg-[#00A651] hover:bg-[#008f45] text-white shadow-green-900/20'
                 }`}

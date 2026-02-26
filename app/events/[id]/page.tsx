@@ -3,26 +3,32 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, MapPin, Calendar, Clock, User, Share2, Bookmark, ExternalLink, Users, Banknote, Trash2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, User, Share2, Bookmark, ExternalLink, Users, Banknote, Trash2, Tag } from 'lucide-react';
 import { Event } from '@/types';
 import { format } from 'date-fns';
-import BottomNav from '@/components/BottomNav';
 import { useAuth } from '@/context/AuthContext';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { useToast } from '@/components/Toast';
+import PhotoViewer from '@/components/PhotoViewer';
 
 export default function EventDetails() {
   const params = useParams();
   const router = useRouter();
   const { user, savedEventIds, toggleSavedEvent } = useAuth();
+  const { showToast } = useToast();
   const [event, setEvent] = useState<Event | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
 
   useEffect(() => {
+    setIsLoading(true);
     fetch('/api/events')
       .then((res) => res.json())
       .then((data) => {
         const found = data.find((e: Event) => e.id === params.id);
         setEvent(found || null);
-      });
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
   }, [params.id]);
 
   const isSaved = event ? savedEventIds.includes(event.id) : false;
@@ -37,25 +43,85 @@ export default function EventDetails() {
 
   const handleDelete = async () => {
     if (!event) return;
-    if (!confirm('Are you sure you want to PERMANENTLY delete this event? This will also remove it from everyone\'s saved list.')) return;
+    if (!confirm('Are you sure you want to PERMANENTLY delete this event?')) return;
 
     try {
       const res = await fetch(`/api/events/${event.id}/delete`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
+      showToast('Event deleted permanently.', 'success');
       router.push('/');
     } catch (err) {
       console.error(err);
-      alert('Failed to delete event.');
+      showToast('Failed to delete event.', 'error');
+    }
+  };
+
+  const handleShare = async () => {
+    if (!event) return;
+    const shareData = {
+      title: event.title,
+      text: `Check out "${event.title}" on AMU Campus Hub! 📅 ${format(new Date(event.date), 'EEE, d MMM')} at ${event.venue}`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        showToast('Event link copied to clipboard!', 'success');
+      }
+    } catch (err) {
+      // User cancelled sharing — silently ignore
     }
   };
 
   const isPast = event ? new Date(event.date) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
 
-  if (!event) return <div className="min-h-screen bg-var(--background) text-var(--foreground) flex items-center justify-center">Loading...</div>;
+  // Skeleton Loading State
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-var(--background) text-var(--foreground) pb-32">
+        <div className="relative h-96 w-full bg-amu-card animate-pulse" />
+        <div className="px-6 -mt-10 relative z-10 space-y-6">
+          <div className="flex justify-between items-end mb-6">
+            <div className="space-y-3 flex-1 max-w-[80%]">
+              <div className="h-6 w-20 bg-amu-card rounded-full animate-pulse" />
+              <div className="h-8 w-full bg-amu-card rounded-2xl animate-pulse" />
+              <div className="h-8 w-2/3 bg-amu-card rounded-2xl animate-pulse" />
+            </div>
+            <div className="w-16 h-16 bg-amu-card rounded-2xl animate-pulse" />
+          </div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-amu-card animate-pulse" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-5 w-1/2 bg-amu-card rounded-xl animate-pulse" />
+                  <div className="h-4 w-1/3 bg-amu-card rounded-xl animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event) return <div className="min-h-screen bg-var(--background) text-var(--foreground) flex items-center justify-center text-gray-400">Event not found.</div>;
 
   return (
     <div className="min-h-screen bg-var(--background) text-var(--foreground) pb-32">
-      <div className="relative h-96 w-full">
+      {/* Photo Viewer Modal */}
+      <PhotoViewer
+        src={event.imageUrl || 'https://picsum.photos/800/600'}
+        alt={event.title}
+        isOpen={photoViewerOpen}
+        onClose={() => setPhotoViewerOpen(false)}
+      />
+
+      {/* Hero Image — clickable to open full photo */}
+      <div className="relative h-96 w-full cursor-pointer" onClick={() => setPhotoViewerOpen(true)}>
         <Image
           src={event.imageUrl || 'https://picsum.photos/800/600'}
           alt={event.title}
@@ -66,18 +132,21 @@ export default function EventDetails() {
 
         <div className="absolute top-6 left-6 right-6 flex justify-between items-center">
           <button
-            onClick={() => router.back()}
+            onClick={(e) => { e.stopPropagation(); router.back(); }}
             className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/10"
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="flex gap-4">
-            <button className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/10">
+          <div className="flex gap-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleShare(); }}
+              className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/10 transition-colors hover:bg-white/20"
+            >
               <Share2 size={20} />
             </button>
             {user?.role === 'admin' && (
               <button
-                onClick={handleDelete}
+                onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                 className="w-10 h-10 rounded-full bg-red-500/80 backdrop-blur-md flex items-center justify-center border border-white/10 text-white transition-colors hover:bg-red-500"
               >
                 <Trash2 size={20} />
@@ -85,7 +154,7 @@ export default function EventDetails() {
             )}
             {user && (
               <button
-                onClick={handleToggleSave}
+                onClick={(e) => { e.stopPropagation(); handleToggleSave(); }}
                 className={`w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/10 transition-colors ${isSaved ? 'text-[#00A651] bg-[#00A651]/20 border-[#00A651]' : ''
                   }`}
               >
@@ -97,6 +166,19 @@ export default function EventDetails() {
       </div>
 
       <div className="px-6 -mt-10 relative z-10">
+        {/* Category Tag */}
+        <div className="mb-3">
+          <span className="inline-flex items-center gap-1.5 text-[#00A651] text-xs font-bold uppercase tracking-widest bg-[#00A651]/10 px-3 py-1.5 rounded-full border border-[#00A651]/20">
+            <Tag size={12} />
+            {event.category}
+          </span>
+          {isPast && (
+            <span className="inline-flex items-center gap-1 ml-2 text-gray-500 text-xs font-bold uppercase tracking-widest bg-gray-800/50 px-3 py-1.5 rounded-full border border-gray-700">
+              ENDED
+            </span>
+          )}
+        </div>
+
         <div className="flex justify-between items-end mb-6">
           <h1 className="text-3xl font-bold leading-tight max-w-[80%]">{event.title}</h1>
           <div className={`rounded-2xl p-3 flex flex-col items-center justify-center shadow-lg w-16 h-16 transition-colors ${isPast ? 'bg-gray-800 text-gray-500 border border-gray-700' : 'bg-white text-black'}`}>
@@ -139,6 +221,10 @@ export default function EventDetails() {
             <div>
               <h3 className="font-bold text-lg">Organizer</h3>
               <p className="text-gray-400 text-sm">{event.organizer}</p>
+              {/* Show who created the event — admin only */}
+              {user?.role === 'admin' && event.createdBy && (
+                <p className="text-gray-600 text-xs mt-1">Submitted by: {event.createdBy}</p>
+              )}
             </div>
           </div>
 
@@ -168,7 +254,7 @@ export default function EventDetails() {
 
           <div className="pt-4">
             <h3 className="font-bold text-lg mb-2">About Event</h3>
-            <p className="text-gray-400 leading-relaxed mb-6">
+            <p className="text-gray-400 leading-relaxed mb-6 whitespace-pre-wrap">
               {event.description}
             </p>
 

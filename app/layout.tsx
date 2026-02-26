@@ -1,14 +1,17 @@
 'use client';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ToastProvider } from '@/components/Toast';
 import './globals.css';
 
 function RootLayoutContent({ children }: { children: React.ReactNode }) {
   const { theme } = useAuth();
-  
+
   return (
     <body suppressHydrationWarning className={`${theme} min-h-screen pb-20`}>
-      {children}
+      <ToastProvider>
+        {children}
+      </ToastProvider>
     </body>
   );
 }

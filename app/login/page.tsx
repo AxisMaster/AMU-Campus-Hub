@@ -46,6 +46,8 @@ export default function LoginPage() {
         const result = await signUp(email, password, name);
         if (result.error) {
           setError(result.error);
+        } else if (result.confirmEmail) {
+          setSuccessMessage('Account created! Please check your email for a confirmation link to complete your registration.');
         } else {
           setSuccessMessage('Account created! You are now logged in.');
           setTimeout(() => router.push('/'), 1500);

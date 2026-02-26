@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Bell, Ghost } from 'lucide-react';
-import Image from 'next/image';
+import { Search, Bell, Ghost, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import BottomNav from '@/components/BottomNav';
@@ -11,9 +10,18 @@ import { useAuth } from '@/context/AuthContext';
 import EventCard from '@/components/EventCard';
 import SkeletonEventCard from '@/components/SkeletonEventCard';
 import UserAvatar from '@/components/UserAvatar';
+import { useToast } from '@/components/Toast';
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
 
 export default function Home() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('All');
@@ -43,10 +51,11 @@ export default function Home() {
     try {
       const res = await fetch(`/api/events/${id}/approve`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to approve');
+      showToast('Event approved successfully!', 'success');
       fetchEvents();
     } catch (err) {
       console.error(err);
-      alert('Failed to approve event.');
+      showToast('Failed to approve event.', 'error');
     }
   };
 
@@ -56,23 +65,25 @@ export default function Home() {
     try {
       const res = await fetch(`/api/events/${id}/reject`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to reject');
+      showToast('Event rejected.', 'info');
       fetchEvents();
     } catch (err) {
       console.error(err);
-      alert('Failed to reject event.');
+      showToast('Failed to reject event.', 'error');
     }
   };
 
   const handleManualDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
-    if (!confirm('Are you sure you want to PERMANENTLY delete this event? This will also remove it from everyone\'s saved list.')) return;
+    if (!confirm('Are you sure you want to PERMANENTLY delete this event?')) return;
     try {
       const res = await fetch(`/api/events/${id}/delete`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
+      showToast('Event deleted permanently.', 'success');
       fetchEvents();
     } catch (err) {
       console.error(err);
-      alert('Failed to delete event.');
+      showToast('Failed to delete event.', 'error');
     }
   };
 
@@ -101,10 +112,12 @@ export default function Home() {
       {/* Header */}
       <header className="p-6 flex justify-between items-center">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="text-[#00A651] text-sm font-bold uppercase tracking-wider">Welcome back</p>
           <h1 className="text-2xl font-black tracking-tight">
-            Good Morning, {user?.name?.split(' ')[0] || 'Guest'}
+            <span className="text-[#00A651]">AMU</span> CAMPUS HUB
           </h1>
+          <p className="text-gray-400 text-sm font-medium">
+            {getGreeting()}, {user?.name?.split(' ')[0] || 'Guest'}
+          </p>
         </motion.div>
         <div className="flex gap-3 items-center">
           <div className="w-10 h-10 rounded-full bg-amu-card flex items-center justify-center border border-amu cursor-pointer hover:bg-amu-card/80 transition-colors shadow-sm">
@@ -226,13 +239,21 @@ export default function Home() {
                 className="col-span-1 py-20 text-center flex flex-col items-center justify-center bg-amu-card/50 rounded-3xl border border-amu border-dashed"
               >
                 <div className="w-20 h-20 bg-gray-800/50 rounded-full flex items-center justify-center mb-6 shadow-inner">
-                  <Ghost size={32} className="text-gray-500" />
+                  {timeFilter === 'past' ? (
+                    <Clock size={32} className="text-gray-500" />
+                  ) : (
+                    <Ghost size={32} className="text-gray-500" />
+                  )}
                 </div>
-                <h3 className="text-xl font-bold mb-2">No Events Found</h3>
+                <h3 className="text-xl font-bold mb-2">
+                  {timeFilter === 'past' ? 'No Past Events' : 'No Events Found'}
+                </h3>
                 <p className="text-gray-400 max-w-xs mx-auto text-sm leading-relaxed">
                   {searchQuery
                     ? `We couldn't find any events matching "${searchQuery}". Try adjusting your filters.`
-                    : "There are no events in this category yet. Check back later!"}
+                    : timeFilter === 'past'
+                      ? "No past events to show. Upcoming events will appear here after they end."
+                      : "There are no events in this category yet. Check back later!"}
                 </p>
                 {searchQuery && (
                   <button

@@ -18,7 +18,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   theme: 'dark' | 'light';
-  signUp: (email: string, password: string, name: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ error?: string; confirmEmail?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   toggleTheme: () => void;
@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const signUp = async (email: string, password: string, name: string): Promise<{ error?: string }> => {
+  const signUp = async (email: string, password: string, name: string): Promise<{ error?: string; confirmEmail?: boolean }> => {
     if (!isSupabaseConfigured) {
       return { error: 'Supabase is not configured. Please set up your environment variables.' };
     }
@@ -157,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         data: { name }, // Stored in user_metadata, used by the DB trigger
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -164,12 +165,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: error.message };
     }
 
-    // If email confirmation is disabled, user is logged in immediately
-    if (data.user) {
-      await fetchUserProfile(data.user.id, data.user.email || '', name);
+    // If email confirmation is enabled, session will be null
+    if (data.session) {
+      // User is logged in immediately (email confirmation disabled)
+      if (data.user) {
+        await fetchUserProfile(data.user.id, data.user.email || '', name);
+      }
+      return {};
     }
 
-    return {};
+    // Email confirmation is required
+    return { confirmEmail: true };
   };
 
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
