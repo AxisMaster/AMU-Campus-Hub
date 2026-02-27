@@ -76,7 +76,10 @@ export default function EventDetails() {
     }
   };
 
-  const isPast = event ? new Date(event.date) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
+  const eventDateTime = event ? new Date(`${event.date}T${event.time || '00:00'}:00`) : null;
+  const now = new Date();
+  const isPast = eventDateTime ? now.getTime() - eventDateTime.getTime() >= 2 * 60 * 60 * 1000 : false;
+  const isHappeningNow = eventDateTime ? now.getTime() >= eventDateTime.getTime() && now.getTime() - eventDateTime.getTime() < 2 * 60 * 60 * 1000 : false;
 
   // Skeleton Loading State
   if (isLoading) {
@@ -167,14 +170,20 @@ export default function EventDetails() {
 
       <div className="relative -mt-16 z-10 bg-[var(--background)] rounded-t-[40px] px-6 pt-10">
         {/* Category Tag */}
-        <div className="mb-3">
+        <div className="mb-3 flex items-center flex-wrap gap-2">
           <span className="inline-flex items-center gap-1.5 text-white text-xs font-bold uppercase tracking-widest bg-[#00A651] px-3 py-1.5 rounded-full shadow-lg">
             <Tag size={12} />
             {event.category}
           </span>
           {isPast && (
-            <span className="inline-flex items-center gap-1 ml-2 text-gray-500 text-xs font-bold uppercase tracking-widest bg-gray-800/50 px-3 py-1.5 rounded-full border border-gray-700">
+            <span className="inline-flex items-center gap-1 text-gray-500 text-xs font-bold uppercase tracking-widest bg-gray-800/50 px-3 py-1.5 rounded-full border border-gray-700">
               ENDED
+            </span>
+          )}
+          {isHappeningNow && (
+            <span className="inline-flex items-center gap-1.5 text-white text-xs font-bold uppercase tracking-widest bg-red-500 px-3 py-1.5 rounded-full shadow-lg animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-white animate-ping" />
+              Happening Now
             </span>
           )}
         </div>

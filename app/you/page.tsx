@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Moon, Sun, Shield, Bookmark, Home, Building, Camera, Check, LogOut, Settings as SettingsIcon, User as UserIcon, Trash2, RefreshCw } from 'lucide-react';
+import { Moon, Sun, Shield, Bookmark, Home, Building, Camera, Check, LogOut, Settings as SettingsIcon, User as UserIcon, Trash2, RefreshCw, Clock } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
@@ -25,6 +25,7 @@ export default function YouPage() {
     const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
     const [adminMode, setAdminMode] = useState(false);
     const [isCleaning, setIsCleaning] = useState(false);
+    const [isSyncingReminders, setIsSyncingReminders] = useState(false);
     const { showToast } = useToast();
     const { permission, isOptedIn, requestPermission, unsubscribe, loading: pushLoading } = useWebPush();
 
@@ -91,6 +92,33 @@ export default function YouPage() {
             showToast('Network error during cleanup', 'error');
         } finally {
             setIsCleaning(false);
+        }
+    };
+
+    const handleSyncReminders = async () => {
+        setIsSyncingReminders(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/reminders/trigger', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify({ testMode: true })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(`Sync complete! Sent ${data.results?.sent24h + data.results?.sent1h || 0} reminders.`, 'success');
+            } else {
+                showToast(data.error || 'Sync failed', 'error');
+            }
+        } catch (error) {
+            console.error('Sync error:', error);
+            showToast('Network error during sync', 'error');
+        } finally {
+            setIsSyncingReminders(false);
         }
     };
 
@@ -245,6 +273,28 @@ export default function YouPage() {
                                         </div>
                                         <div className={`font-bold text-sm ${isCleaning ? 'text-gray-500' : 'text-[#00A651]'}`}>
                                             {isCleaning ? '...' : 'RUN'}
+                                        </div>
+                                    </button>
+
+                                    {/* Reminder Engine Trigger */}
+                                    <button
+                                        onClick={handleSyncReminders}
+                                        disabled={isSyncingReminders}
+                                        className="w-full bg-amu-card p-5 rounded-3xl border border-amu hover:bg-amu-card/80 transition-all cursor-pointer group flex items-center justify-between shadow-sm disabled:opacity-50"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-[#0F291E] flex items-center justify-center text-[#00A651] group-hover:scale-110 transition-transform shadow-inner">
+                                                {isSyncingReminders ? <RefreshCw size={24} className="animate-spin" /> : <Clock size={24} />}
+                                            </div>
+                                            <div className="text-left">
+                                                <h4 className="font-bold text-lg">Sync Reminders</h4>
+                                                <p className="text-sm text-gray-400">
+                                                    {isSyncingReminders ? 'Checking schedules...' : 'Trigger 24h & 1h event alerts'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className={`font-bold text-sm ${isSyncingReminders ? 'text-gray-500' : 'text-[#00A651]'}`}>
+                                            {isSyncingReminders ? '...' : 'SYNC'}
                                         </div>
                                     </button>
                                 </div>

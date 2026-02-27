@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Bookmark, FolderHeart } from 'lucide-react';
+import { ArrowLeft, Bookmark, FolderHeart, Clock } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/BottomNav';
 import { Event } from '@/types';
@@ -79,6 +79,25 @@ export default function SavedEvents() {
       </header>
 
       <div className="p-6 space-y-6 max-w-2xl mx-auto relative min-h-[400px]">
+        {!loading && savedEvents.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-start gap-3"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-500">
+              <Clock size={16} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-emerald-400">Reminders are active!</p>
+              <p className="text-xs text-emerald-500/70 leading-relaxed">
+                You'll receive a push notification 24 hours and 1 hour before these events start.
+                Make sure notifications are enabled in your settings.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         <AnimatePresence mode="popLayout">
           {loading ? (
             // Skeleton Loaders

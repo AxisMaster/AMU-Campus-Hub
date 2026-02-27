@@ -23,6 +23,10 @@ export default function EventCard({ event, isPast, onApprove, onReject, onDelete
   const day = format(eventDate, 'dd');
   const month = format(eventDate, 'MMM').toUpperCase();
 
+  const eventDateTime = new Date(`${event.date}T${event.time || '00:00'}:00`);
+  const now = new Date();
+  const isHappeningNow = now.getTime() >= eventDateTime.getTime() && now.getTime() - eventDateTime.getTime() < 2 * 60 * 60 * 1000;
+
   const isSaved = savedEventIds.includes(event.id);
 
   const handleSave = async (e: React.MouseEvent) => {
@@ -63,6 +67,14 @@ export default function EventCard({ event, isPast, onApprove, onReject, onDelete
         {!event.isApproved && isAdmin && (
           <div className={`absolute top-3 z-20 bg-yellow-500/90 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${isAdmin && onDelete ? 'right-14' : 'right-3'}`}>
             <Clock size={12} /> Pending
+          </div>
+        )}
+
+        {/* Happening Now Badge */}
+        {isHappeningNow && event.isApproved && (
+          <div className={`absolute top-3 z-20 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 animate-pulse shadow-lg ${isAdmin && onDelete ? 'right-14' : 'right-3'}`}>
+            <div className="w-2 h-2 rounded-full bg-white animate-ping" />
+            Happening Now
           </div>
         )}
 

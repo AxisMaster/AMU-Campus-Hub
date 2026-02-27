@@ -96,11 +96,11 @@ export default function Home() {
       if (!event.isApproved) return false;
     }
 
-    const eventDate = new Date(event.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const eventDateTime = new Date(`${event.date}T${event.time || '00:00'}:00`);
+    const now = new Date();
+    // Event is considered "Past" 2 hours after its start time
+    const isPast = now.getTime() - eventDateTime.getTime() >= 2 * 60 * 60 * 1000;
 
-    const isPast = eventDate < today;
     if (timeFilter === 'upcoming' && isPast) return false;
     if (timeFilter === 'past' && !isPast) return false;
 
