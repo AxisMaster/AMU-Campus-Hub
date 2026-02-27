@@ -94,19 +94,28 @@ export const addEvent = async (event: Event): Promise<void> => {
 /**
  * Approve an event. Admin-only operation.
  */
-export const approveEvent = async (id: string): Promise<void> => {
+export const approveEvent = async (id: string): Promise<Event | null> => {
   if (isSupabaseConfigured) {
     const adminClient = createAdminClient();
-    const { error } = await adminClient.from('events').update({ is_approved: true }).eq('id', id);
+    const { data, error } = await adminClient
+      .from('events')
+      .update({ is_approved: true })
+      .eq('id', id)
+      .select()
+      .single();
+
     if (error) {
       console.error('Error approving event in Supabase:', error);
       throw error;
     }
+    return mapSupabaseEventToLocal(data);
   } else {
     const event = fallbackEvents.find((e) => e.id === id);
     if (event) {
       event.isApproved = true;
+      return event;
     }
+    return null;
   }
 };
 
@@ -127,15 +136,16 @@ function extractStoragePath(url: string | null | undefined): string | null {
 /**
  * Delete/reject an event. Admin-only operation.
  * Also cleans up associated images/documents from Supabase Storage.
+ * Returns the deleted event data for notification purposes.
  */
-export const deleteEvent = async (id: string): Promise<void> => {
+export const deleteEvent = async (id: string): Promise<Event | null> => {
   if (isSupabaseConfigured) {
     const adminClient = createAdminClient();
 
-    // 1. Fetch URLs first to know what to delete from storage
+    // 1. Fetch full event row first
     const { data: eventData } = await adminClient
       .from('events')
-      .select('image_url, document_url')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -156,25 +166,26 @@ export const deleteEvent = async (id: string): Promise<void> => {
           await adminClient.storage.from('event-images').remove(pathsToDelete);
         } catch (storageError) {
           console.error('Failed to cleanup storage for event:', id, storageError);
-          // Don't throw, proceed with DB deletion anyway
         }
       }
     }
 
-    // 2. Manually delete from saved_events first
+    // 2. Cleanup relations
     await adminClient.from('saved_events').delete().eq('event_id', id);
-
-    // 3. Delete from notifications if any
     await adminClient.from('notifications').delete().eq('event_id', id);
 
-    // 4. Finally delete the event itself
+    // 3. Delete the event
     const { error } = await adminClient.from('events').delete().eq('id', id);
     if (error) {
       console.error('Error deleting event in Supabase:', error);
       throw error;
     }
+
+    return eventData ? mapSupabaseEventToLocal(eventData) : null;
   } else {
+    const event = fallbackEvents.find((e) => e.id === id);
     fallbackEvents = fallbackEvents.filter((e) => e.id !== id);
+    return event || null;
   }
 };
 

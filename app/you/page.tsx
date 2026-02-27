@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import UserAvatar from '@/components/UserAvatar';
 import { useToast } from '@/components/Toast';
+import { useWebPush } from '@/hooks/useWebPush';
+import { Bell } from 'lucide-react';
 
 const DEPARTMENTS = ['ZHCET (Engineering)', 'Science', 'Arts', 'Commerce', 'Medicine', 'Law', 'Social Science', 'Other'];
 const HALLS = ['Sulaiman Hall', 'Sir Syed Hall', 'Ross Masood Hall', 'Hadi Hasan Hall', 'Mohammad Habib Hall', 'Nadeem Tarin Hall', 'Other'];
@@ -24,6 +26,7 @@ export default function YouPage() {
     const [adminMode, setAdminMode] = useState(false);
     const [isCleaning, setIsCleaning] = useState(false);
     const { showToast } = useToast();
+    const { permission, isOptedIn, requestPermission, unsubscribe, loading: pushLoading } = useWebPush();
 
     // Settings State
     const [formData, setFormData] = useState({
@@ -348,6 +351,42 @@ export default function YouPage() {
                                     </div>
                                 </div>
 
+                                {/* Notification Settings */}
+                                <div className="bg-amu-card p-6 rounded-3xl border border-amu shadow-sm space-y-6">
+                                    <h2 className="text-sm font-black tracking-widest text-gray-500 uppercase flex items-center gap-2 mb-4">
+                                        <Bell size={16} className="text-[#00A651]" />
+                                        Notifications
+                                    </h2>
+
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="font-bold text-sm">Push Notifications</h4>
+                                            <p className="text-xs text-gray-400">Get alerts even when the app is closed</p>
+                                        </div>
+                                        <div
+                                            className={`relative w-12 h-7 rounded-full p-1 transition-colors cursor-pointer ${isOptedIn ? 'bg-[#00A651]' : 'bg-gray-700'}`}
+                                            onClick={() => isOptedIn ? unsubscribe() : requestPermission()}
+                                        >
+                                            <motion.div
+                                                className="w-5 h-5 bg-white rounded-full shadow-md"
+                                                animate={{ x: isOptedIn ? 20 : 0 }}
+                                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                            />
+                                            {pushLoading && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
+                                                    <RefreshCw size={12} className="animate-spin text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {permission === 'denied' && (
+                                        <p className="text-[10px] text-red-400 font-medium">
+                                            Notifications are blocked by your browser. Please enable them in site settings.
+                                        </p>
+                                    )}
+                                </div>
+
                                 <button
                                     type="submit"
                                     className="w-full bg-[#00A651] text-white font-black tracking-wide py-4 text-sm rounded-2xl shadow-lg shadow-green-900/20 hover:bg-[#008f45] transition-all"
@@ -369,6 +408,6 @@ export default function YouPage() {
             </div>
 
             <BottomNav />
-        </div>
+        </div >
     );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
@@ -20,10 +20,13 @@ export default function LoginPage() {
   const router = useRouter();
 
   // If already logged in, redirect
-  if (user) {
-    router.push('/');
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      router.push('/');
+    }
+  }, [user, router]);
+
+  if (user) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

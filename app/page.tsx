@@ -11,6 +11,8 @@ import EventCard from '@/components/EventCard';
 import SkeletonEventCard from '@/components/SkeletonEventCard';
 import UserAvatar from '@/components/UserAvatar';
 import { useToast } from '@/components/Toast';
+import { useRouter } from 'next/navigation';
+import NotificationInbox from '@/components/NotificationInbox';
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -20,7 +22,8 @@ function getGreeting() {
 }
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, theme } = useAuth();
+  const router = useRouter();
   const { showToast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,17 +115,22 @@ export default function Home() {
       {/* Header */}
       <header className="p-6 flex justify-between items-center">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-black tracking-tight">
-            <span className="text-[#00A651]">AMU</span> CAMPUS HUB
-          </h1>
-          <p className="text-gray-400 text-sm font-medium">
-            {getGreeting()}, {user?.name?.split(' ')[0] || 'Guest'}
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1 shadow-sm">
+              <img src="/logo.png" alt="AMU Campus Hub" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight leading-none">
+                <span className="text-[#00A651]">AMU</span> CAMPUS HUB
+              </h1>
+              <p className="text-gray-400 text-xs font-medium mt-1">
+                {getGreeting()}, {user?.name?.split(' ')[0] || 'Guest'}
+              </p>
+            </div>
+          </div>
         </motion.div>
         <div className="flex gap-3 items-center">
-          <div className="w-10 h-10 rounded-full bg-amu-card flex items-center justify-center border border-amu cursor-pointer hover:bg-amu-card/80 transition-colors shadow-sm">
-            <Bell size={20} className="text-gray-400" />
-          </div>
+          <NotificationInbox />
           <Link href="/you">
             <UserAvatar name={user?.name || 'Guest'} className="w-10 h-10 border-2 border-[#00A651]" />
           </Link>
